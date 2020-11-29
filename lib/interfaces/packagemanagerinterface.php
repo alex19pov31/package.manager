@@ -1,7 +1,7 @@
 <?php
 
 
-namespace Beta\Composer\Interfaces;
+namespace Package\Manager\Interfaces;
 
 
 interface PackageManagerInterface
@@ -32,7 +32,7 @@ interface PackageManagerInterface
     public function isRequired(string $package): bool;
 
     /**
-     * @return ResultOperationInterface
+     * @return void
      */
-    public function run(): ResultOperationInterface;
+    public function run();
 }

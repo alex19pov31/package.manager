@@ -1,11 +1,14 @@
 <?
 
 IncludeModuleLangFile(__FILE__);
+
+use Bitrix\Main\ArgumentNullException;
+use Bitrix\Main\ArgumentOutOfRangeException;
 use Bitrix\Main\ModuleManager;
 use Bitrix\Main\Config\Option;
 use Bitrix\Main\Application;
 
-class beta_composer extends CModule
+class package_manager extends CModule
 {
     public $MODULE_ID = "package.manager";
     public $MODULE_VERSION;
@@ -22,9 +25,13 @@ class beta_composer extends CModule
         $this->MODULE_DESCRIPTION = "Управление пакетами: composer, git...";
     }
 
-    public function DoInstall()
+    /**
+     * @return bool
+     * @throws ArgumentNullException
+     * @throws ArgumentOutOfRangeException
+     */
+    public function DoInstall(): bool
     {
-        $vendorDir = Option::get($this->MODULE_ID, 'VENDOR_DIR', null);
         $composerPath = Option::get($this->MODULE_ID, 'COMPOSER_PATH', null);
         if (empty($composerPath)) {
             $this->installComposer();
@@ -34,76 +41,40 @@ class beta_composer extends CModule
         return true;
     }
 
+    /**
+     * @return bool
+     * @throws ArgumentOutOfRangeException
+     */
     private function installComposer(): bool
     {
-        $documentRoot = Applicaton::getDocumentRoot();
+        $documentRoot = Application::getDocumentRoot();
         copy('https://getcomposer.org/installer', "{$documentRoot}/local/composer-setup.php");
-        require_once "{$documentRoot}/local/composer-setup.php";
-        unlink("{$documentRoot}/local/composer-setup.php");
+
+        $output = null;
+        $result = null;
+
         $composerPath = "{$documentRoot}/local/composer.phar";
-        if (!file_exists($composerPath)) {
+        $commandList = [
+            "php {$documentRoot}/local/composer-setup.php --install-dir={$documentRoot}/local",
+        ];
+        unlink("{$documentRoot}/local/composer-setup.php");
+        exec(implode(' && ', $commandList), $output, $result);
+        if (!file_exists($composerPath) || $result === 1) {
             return false;
         }
 
         Option::set($this->MODULE_ID, 'COMPOSER_PATH', $composerPath);
-        Option::set($this->MODULE_ID, 'VENDOR_DIR', "{$documentRoot}/local/vendor");
+        Option::set($this->MODULE_ID, 'WORK_DIR', "{$documentRoot}/local");
 
         return true;
     }
 
-    public function DoUninstall()
+    /**
+     * @return bool
+     */
+    public function DoUninstall(): bool
     {
-        /*$this->UnInstallDB();
-        $this->UnInstallEvents();
-        $this->UnInstallFiles();*/
         ModuleManager::UnRegisterModule($this->MODULE_ID);
-        return true;
-    }
-
-    public function InstallDB()
-    {
-        global $DB;
-        $this->errors = false;
-        $this->errors = $DB->RunSQLBatch($_SERVER['DOCUMENT_ROOT'] . "/bitrix/modules/".$this->MODULE_ID."/install/db/install.sql");
-        if (!$this->errors) {
-
-            return true;
-        } else {
-            return $this->errors;
-        }
-
-    }
-
-    public function UnInstallDB()
-    {
-        global $DB;
-        $this->errors = false;
-        $this->errors = $DB->RunSQLBatch($_SERVER['DOCUMENT_ROOT'] . "/bitrix/modules/".$this->MODULE_ID."/install/db/uninstall.sql");
-        if (!$this->errors) {
-            return true;
-        } else {
-            return $this->errors;
-        }
-
-    }
-
-    public function InstallEvents()
-    {
-        return true;
-    }
-
-    public function UnInstallEvents()
-    {
-        return true;
-    }
-
-    public function InstallFiles()
-    {
-        return true;
-    }
-
-    public function UnInstallFiles()
-    {
         return true;
     }
 }

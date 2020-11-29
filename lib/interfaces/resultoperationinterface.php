@@ -1,7 +1,7 @@
 <?php
 
 
-namespace Beta\Composer\Interfaces;
+namespace Package\Manager\Interfaces;
 
 
 interface ResultOperationInterface

@@ -1,16 +1,18 @@
 <?php
 
 
-namespace Beta\Composer;
+namespace Package\Manager;
 
-use Beta\Composer\Interfaces\PackageManagerInterface;
-use Beta\Composer\Interfaces\ResultOperationInterface;
-use Beta\Composer\Traits\ConfigTrait;
-use Bitrix\Main\Config\Option;
+use Bitrix\Main\ArgumentNullException;
+use Bitrix\Main\ArgumentOutOfRangeException;
+use Package\Manager\Interfaces\PackageManagerInterface;
+use Package\Manager\Traits\ComposerCommandTrait;
+use Package\Manager\Traits\ConfigTrait;
 
 class ComposerPackageManager implements PackageManagerInterface
 {
     use ConfigTrait;
+    use ComposerCommandTrait;
 
     /**
      * @var array
@@ -43,10 +45,12 @@ class ComposerPackageManager implements PackageManagerInterface
     /**
      * @param string $package
      * @param string|null $version
+     * @throws ArgumentNullException
+     * @throws ArgumentOutOfRangeException
      */
     public function add(string $package, string $version = null)
     {
-        if ($this->isRequired($package)) {
+        if ($this->isInstalled($package)) {
             return;
         }
 
@@ -60,6 +64,8 @@ class ComposerPackageManager implements PackageManagerInterface
 
     /**
      * @param string $package
+     * @throws ArgumentNullException
+     * @throws ArgumentOutOfRangeException
      */
     public function delete(string $package)
     {
@@ -71,51 +77,45 @@ class ComposerPackageManager implements PackageManagerInterface
     /**
      * @param string $package
      * @return bool
+     * @throws ArgumentNullException
+     * @throws ArgumentOutOfRangeException
      */
     public function isInstalled(string $package): bool
     {
         return $this->packageIsInstalled($package);
     }
 
-    /**
-     * @return ResultOperationInterface
-     */
-    public function run(): ResultOperationInterface
-    {
-        $commandList = [];
-        $composerPath = $this->getComposerPath();
 
+    /**
+     * @return void
+     * @throws ArgumentNullException
+     * @throws ArgumentOutOfRangeException
+     * @throws CommandException
+     *
+     */
+    public function run()
+    {
         foreach ($this->addList as $package) {
             if (!$this->isInstalled($package)) {
-                $commandList[] = "{$composerPath} require {$package}";
+                $this->requirePackage($package);
             }
         }
 
         foreach ($this->deleteList as $package) {
             if ($this->isInstalled($package)) {
-                $commandList[] = "{$composerPath} remove {$package}";
+                $this->removePackage($package);
             }
         }
 
-        $commandStr = implode(' && ', $commandList);
-        if (empty($commandStr)) {
-            return;
-        }
-
-        try {
-            exec($commandStr);
-            $this->addList = [];
-            $this->deleteList = [];
-        } catch (\Throwable $e) {
-            return new ResultOperation(false, $e->getMessage());
-        }
-
-        return new ResultOperation(true);
+        $this->addList = [];
+        $this->deleteList = [];
     }
 
     /**
      * @param string $package
      * @return bool
+     * @throws ArgumentNullException
+     * @throws ArgumentOutOfRangeException
      */
     public function isRequired(string $package): bool
     {
