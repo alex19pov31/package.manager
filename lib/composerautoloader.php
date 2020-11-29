@@ -3,6 +3,7 @@
 namespace Beta\Composer;
 
 use Beta\Composer\Interfaces\AutoloaderInterface;
+use Beta\Composer\Traits\ConfigTrait;
 use Bitrix\Main\Application;
 use Bitrix\Main\ArgumentNullException;
 use Bitrix\Main\ArgumentOutOfRangeException;
@@ -10,6 +11,8 @@ use Bitrix\Main\Config\Option;
 
 class ComposerAutoloader implements AutoloaderInterface
 {
+    use ConfigTrait;
+
     /**
      * @var ComposerAutoloader
      */
@@ -25,17 +28,6 @@ class ComposerAutoloader implements AutoloaderInterface
         }
 
         return static::$instance = new static();
-    }
-
-    /**
-     * @return string
-     * @throws ArgumentNullException
-     * @throws ArgumentOutOfRangeException
-     */
-    private function getVendorDir(): string
-    {
-        $defaultPath = Application::getDocumentRoot().'/local/vendor';
-        return Option::get('beta.composer', 'VENDOR_DIR', $defaultPath);
     }
 
     /**

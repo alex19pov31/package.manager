@@ -1,11 +1,13 @@
 <?
 
 IncludeModuleLangFile(__FILE__);
-use \Bitrix\Main\ModuleManager;
+use Bitrix\Main\ModuleManager;
+use Bitrix\Main\Config\Option;
+use Bitrix\Main\Application;
 
 class beta_composer extends CModule
 {
-    public $MODULE_ID = "beta.composer";
+    public $MODULE_ID = "package.manager";
     public $MODULE_VERSION;
     public $MODULE_VERSION_DATE;
     public $MODULE_NAME;
@@ -16,24 +18,44 @@ class beta_composer extends CModule
     {
         $this->MODULE_VERSION = "0.0.1";
         $this->MODULE_VERSION_DATE = "2020-11-28 22:05:41";
-        $this->MODULE_NAME = "Название модуля";
-        $this->MODULE_DESCRIPTION = "Описание модуля";
+        $this->MODULE_NAME = "Управление пакетами";
+        $this->MODULE_DESCRIPTION = "Управление пакетами: composer, git...";
     }
 
     public function DoInstall()
     {
-        $this->InstallDB();
-        $this->InstallEvents();
-        $this->InstallFiles();
+        $vendorDir = Option::get($this->MODULE_ID, 'VENDOR_DIR', null);
+        $composerPath = Option::get($this->MODULE_ID, 'COMPOSER_PATH', null);
+        if (empty($composerPath)) {
+            $this->installComposer();
+        }
+
         ModuleManager::RegisterModule($this->MODULE_ID);
+        return true;
+    }
+
+    private function installComposer(): bool
+    {
+        $documentRoot = Applicaton::getDocumentRoot();
+        copy('https://getcomposer.org/installer', "{$documentRoot}/local/composer-setup.php");
+        require_once "{$documentRoot}/local/composer-setup.php";
+        unlink("{$documentRoot}/local/composer-setup.php");
+        $composerPath = "{$documentRoot}/local/composer.phar";
+        if (!file_exists($composerPath)) {
+            return false;
+        }
+
+        Option::set($this->MODULE_ID, 'COMPOSER_PATH', $composerPath);
+        Option::set($this->MODULE_ID, 'VENDOR_DIR', "{$documentRoot}/local/vendor");
+
         return true;
     }
 
     public function DoUninstall()
     {
-        $this->UnInstallDB();
+        /*$this->UnInstallDB();
         $this->UnInstallEvents();
-        $this->UnInstallFiles();
+        $this->UnInstallFiles();*/
         ModuleManager::UnRegisterModule($this->MODULE_ID);
         return true;
     }

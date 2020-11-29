@@ -21,13 +21,6 @@ interface PackageManagerInterface
 
     /**
      * @param string $package
-     * @param string|null $version
-     * @return mixed
-     */
-    public function findPackage(string $package, string $version = null);
-
-    /**
-     * @param string $package
      * @return bool
      */
     public function isInstalled(string $package): bool;

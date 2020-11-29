@@ -3,14 +3,15 @@
 
 namespace Beta\Composer;
 
-
-use Beta\Composer\Interfaces\AutoloaderInterface;
 use Beta\Composer\Interfaces\PackageManagerInterface;
 use Beta\Composer\Interfaces\ResultOperationInterface;
+use Beta\Composer\Traits\ConfigTrait;
 use Bitrix\Main\Config\Option;
 
 class ComposerPackageManager implements PackageManagerInterface
 {
+    use ConfigTrait;
+
     /**
      * @var array
      */
@@ -27,6 +28,9 @@ class ComposerPackageManager implements PackageManagerInterface
     private function __construct() {}
     private function __clone() {}
 
+    /**
+     * @return PackageManagerInterface
+     */
     public static function instance(): PackageManagerInterface
     {
         if (static::$instance instanceof PackageManagerInterface) {
@@ -36,11 +40,10 @@ class ComposerPackageManager implements PackageManagerInterface
         return static::$instance = new static();
     }
 
-    private function getComposerPath(): string
-    {
-        return Option::get('beta.composer', 'COMPOSER_PATH', '/bin/composer');
-    }
-
+    /**
+     * @param string $package
+     * @param string|null $version
+     */
     public function add(string $package, string $version = null)
     {
         if ($this->isRequired($package)) {
@@ -55,6 +58,9 @@ class ComposerPackageManager implements PackageManagerInterface
         $this->addList[$key] = $package;
     }
 
+    /**
+     * @param string $package
+     */
     public function delete(string $package)
     {
         if ($this->isRequired($package)) {
@@ -62,15 +68,13 @@ class ComposerPackageManager implements PackageManagerInterface
         }
     }
 
-    public function findPackage(string $package, string $version = null)
-    {
-        // TODO: Implement findPackage() method.
-    }
-
+    /**
+     * @param string $package
+     * @return bool
+     */
     public function isInstalled(string $package): bool
     {
-        // TODO: Implement isInstalled() method.
-        return false;
+        return $this->packageIsInstalled($package);
     }
 
     /**
@@ -109,8 +113,12 @@ class ComposerPackageManager implements PackageManagerInterface
         return new ResultOperation(true);
     }
 
+    /**
+     * @param string $package
+     * @return bool
+     */
     public function isRequired(string $package): bool
     {
-        return false;
+        return $this->packageInRequired($package);
     }
 }
