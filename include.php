@@ -1,12 +1,13 @@
 <?php
 
-/*use Package\Manager\ComposerPackageManager;
-use Package\Manager\ComposerAutoloader;
+/*use Package\Manager\PMFactory;
 
-$packageManager = ComposerPackageManager::instance();
+$pmFactory = PMFactory::instance();
+$packageManager = $pmFactory->getComposerPackageManager();
+$autoloader = $pmFactory->getComposerAutoloader();
+
 $packageManager->add('illuminate/collections');
 
-$autoloader = ComposerAutoloader::instance();
 $autoloader->registerBitrixModule(
     'iblock',
     'highloadblock',

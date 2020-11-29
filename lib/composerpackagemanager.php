@@ -7,11 +7,9 @@ use Bitrix\Main\ArgumentNullException;
 use Bitrix\Main\ArgumentOutOfRangeException;
 use Package\Manager\Interfaces\PackageManagerInterface;
 use Package\Manager\Traits\ComposerCommandTrait;
-use Package\Manager\Traits\ConfigTrait;
 
 class ComposerPackageManager implements PackageManagerInterface
 {
-    use ConfigTrait;
     use ComposerCommandTrait;
 
     /**
@@ -26,20 +24,34 @@ class ComposerPackageManager implements PackageManagerInterface
      * @var PackageManagerInterface
      */
     private static $instance;
+    /**
+     * @var ComposerConfig
+     */
+    private $config;
 
-    private function __construct() {}
-    private function __clone() {}
+    public function __construct(ComposerConfig $config)
+    {
+        $this->config = $config;
+    }
 
     /**
-     * @return PackageManagerInterface
+     * @return string
+     * @throws ArgumentNullException
+     * @throws ArgumentOutOfRangeException
      */
-    public static function instance(): PackageManagerInterface
+    protected function getComposerPath(): string
     {
-        if (static::$instance instanceof PackageManagerInterface) {
-            return static::$instance;
-        }
+        return $this->config->getComposerPath();
+    }
 
-        return static::$instance = new static();
+    /**
+     * @return string
+     * @throws ArgumentNullException
+     * @throws ArgumentOutOfRangeException
+     */
+    protected function getWorkDir(): string
+    {
+        return $this->config->getWorkDir();
     }
 
     /**
@@ -82,7 +94,7 @@ class ComposerPackageManager implements PackageManagerInterface
      */
     public function isInstalled(string $package): bool
     {
-        return $this->packageIsInstalled($package);
+        return $this->config->packageIsInstalled($package);
     }
 
 
@@ -119,6 +131,6 @@ class ComposerPackageManager implements PackageManagerInterface
      */
     public function isRequired(string $package): bool
     {
-        return $this->packageInRequired($package);
+        return $this->config->packageInRequired($package);
     }
 }

@@ -5,13 +5,11 @@ namespace Package\Manager;
 use Bitrix\Main\Application;
 use Package\Manager\Interfaces\AutoloaderInterface;
 use Package\Manager\Traits\ComposerCommandTrait;
-use Package\Manager\Traits\ConfigTrait;
 use Bitrix\Main\ArgumentNullException;
 use Bitrix\Main\ArgumentOutOfRangeException;
 
 class ComposerAutoloader implements AutoloaderInterface
 {
-    use ConfigTrait;
     use ComposerCommandTrait;
 
     /**
@@ -26,17 +24,51 @@ class ComposerAutoloader implements AutoloaderInterface
      * @var array
      */
     private $needInclude = [];
+    /**
+     * @var ComposerConfig
+     */
+    private $config;
+    /**
+     * @var ComposerPackageManager
+     */
+    private $packageManager;
 
-    private function __construct() {}
-    private function __clone() {}
+    /**
+     * @var array
+     */
+    private $addClassmap = [];
 
-    public static function instance(): self
+    /**
+     * @var array
+     */
+    private $addNamespace = [];
+
+    public function __construct(
+        ComposerConfig $config,
+        ComposerPackageManager $packageManager
+    ){
+        $this->config = $config;
+        $this->packageManager = $packageManager;
+    }
+
+    /**
+     * @return string
+     * @throws ArgumentNullException
+     * @throws ArgumentOutOfRangeException
+     */
+    protected function getComposerPath(): string
     {
-        if (static::$instance instanceof ComposerAutoloader) {
-            return static::$instance;
-        }
+        return $this->config->getComposerPath();
+    }
 
-        return static::$instance = new static();
+    /**
+     * @return string
+     * @throws ArgumentNullException
+     * @throws ArgumentOutOfRangeException
+     */
+    protected function getWorkDir(): string
+    {
+        return $this->config->getWorkDir();
     }
 
     /**
@@ -48,7 +80,7 @@ class ComposerAutoloader implements AutoloaderInterface
     public function registerBitrixModule(string ...$moduleList): self
     {
         foreach ($moduleList as &$module) {
-            $module = "/bitrix/modules/{$module}";
+            $module = "bitrix/modules/{$module}";
         }
 
         unset($module);
@@ -66,7 +98,7 @@ class ComposerAutoloader implements AutoloaderInterface
     {
         $documentRoot = Application::getDocumentRoot();
         foreach ($moduleList as &$module) {
-            $module = "/local/modules/{$module}";
+            $module = "local/modules/{$module}";
             $includeFile = $documentRoot.$module."/include.php";
             if (file_exists($includeFile) && !in_array($includeFile, $this->needInclude)) {
                 $this->needInclude[] = $includeFile;
@@ -82,72 +114,79 @@ class ComposerAutoloader implements AutoloaderInterface
     /**
      * @param string ...$relativePathList
      * @return bool
-     * @throws ArgumentNullException
-     * @throws ArgumentOutOfRangeException
      */
     public function addClassMap(string ...$relativePathList): bool
     {
-        $config = $this->getComposerConfig();
-        $classMap = $config['autoload']['classmap'] ?? [];
-        $needUpdate = false;
         foreach ($relativePathList as $relativePath) {
+            $this->addClassmap[] = $relativePath;
+        }
+        return true;
+    }
+
+    /**
+     * @param array $namespaceList
+     * @return bool
+     */
+    public function addNamespace(array $namespaceList): bool
+    {
+        foreach ($namespaceList as $namespace => $relativePath) {
+            $this->addNamespace[$namespace] = $relativePath;
+        }
+
+        return true;
+    }
+
+    /**
+     * @throws ArgumentNullException
+     * @throws ArgumentOutOfRangeException
+     * @throws CommandException
+     */
+    private function updateAutoload()
+    {
+        $config = $this->config->getComposerConfig();
+        $classMap = $config['autoload']['classmap'] ?? [];
+        $psr4 = $config['autoload']['psr-4'] ?? [];
+        $needUpdate = false;
+
+        foreach ($this->addClassmap as $relativePath) {
             if (!in_array($relativePath, $classMap)) {
                 $needUpdate = true;
                 $classMap[] = $relativePath;
             }
         }
 
-        if (!$needUpdate) {
-            return false;
-        }
-
-        $config['autoload']['classmap'] = $classMap;
-        $result = $this->updateComposerConfig($config);
-        if ($result) {
-            $this->needUpdateDump = true;
-        }
-
-        return $result;
-    }
-
-    /**
-     * @param array $namespaceList
-     * @return bool
-     * @throws ArgumentNullException
-     * @throws ArgumentOutOfRangeException
-     */
-    public function addNamespace(array $namespaceList): bool
-    {
-        $config = $this->getComposerConfig();
-        $psr4 = $config['autoload']['psr-4'] ?? [];
-        $needUpdate = false;
-        foreach ($namespaceList as $namespace => $relativePath) {
+        foreach ($this->addNamespace as $namespace => $relativePath) {
             if (!isset($psr4[$namespace]) || $psr4[$namespace] !== $relativePath) {
                 $needUpdate = true;
                 $psr4[$namespace] = $relativePath;
             }
         }
 
-        if (!$needUpdate) {
-            return false;
+        if ($needUpdate) {
+            if (!empty($classMap)) {
+                $config['autoload']['classmap'] = $classMap;
+            }
+
+            if (!empty($psr4)) {
+                $config['autoload']['psr-4'] = $psr4;
+            }
+
+            $this->config->updateComposerConfig($config);
+            $this->dumpAutoload();
         }
 
-        $config['autoload']['psr-4'] = $psr4;
-        $result = $this->updateComposerConfig($config);
-        if ($result) {
-            $this->needUpdateDump = true;
-        }
-
-        return $result;
+        $this->addClassmap = [];
+        $this->addNamespace = [];
     }
 
     /**
+     * @param bool $checkDependency
      * @return bool
      * @throws ArgumentNullException
      * @throws ArgumentOutOfRangeException
      * @throws CommandException
      */
-    public function include(): bool
+    public function include(bool $checkDependency = false): bool
     {
         foreach ($this->needInclude as $includeFile) {
             if(file_exists($includeFile)) {
@@ -155,13 +194,13 @@ class ComposerAutoloader implements AutoloaderInterface
             }
         }
 
-        $this->needInclude = [];
-        ComposerPackageManager::instance()->run();
-        if ($this->needUpdateDump) {
-            $this->dumpAutoload();
+        if ($checkDependency) {
+            $this->needInclude = [];
+            $this->packageManager->run();
+            $this->updateAutoload();
         }
 
-        $file = $this->getVendorDir().'/autoload.php';
+        $file = $this->config->getVendorDir().'/autoload.php';
         if (file_exists($file)) {
             require_once $file;
             return true;

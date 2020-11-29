@@ -23,6 +23,9 @@ trait ComposerCommandTrait
         exec($command, $output, $result);
         if ($result > 0) {
             $errorMessage = !empty($output) ? $output : ($errorMessage ?? "Error exec: {$command}");
+            if (is_array($errorMessage)) {
+                $errorMessage = implode(', ', $errorMessage);
+            }
             throw new CommandException($errorMessage, $command);
         }
     }

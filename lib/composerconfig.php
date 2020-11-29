@@ -1,31 +1,33 @@
 <?php
 
-namespace Package\Manager\Traits;
 
+namespace Package\Manager;
+
+
+use Bitrix\Main\Application;
 use Bitrix\Main\ArgumentNullException;
 use Bitrix\Main\ArgumentOutOfRangeException;
 use Bitrix\Main\Config\Option;
-use Bitrix\Main\Application;
 
-trait ConfigTrait
+class ComposerConfig
 {
-    protected static $workDir;
-    protected static $composerPath;
-    protected static $composerConfig;
+    protected $workDir;
+    protected $composerPath;
+    protected $composerConfig;
 
     /**
      * @return string
      * @throws ArgumentNullException
      * @throws ArgumentOutOfRangeException
      */
-    protected function getWorkDir(): string
+    public function getWorkDir(): string
     {
-        if (!empty(static::$workDir)) {
-            return (string)static::$workDir;
+        if (!empty($this->workDir)) {
+            return (string)$this->workDir;
         }
 
-        $defaultPath = Application::getDocumentRoot().'/local';
-        return static::$workDir = Option::get('package.manager', 'WORK_DIR', $defaultPath);
+        $defaultPath = Application::getDocumentRoot();
+        return $this->workDir = Option::get('package.manager', 'WORK_DIR', $defaultPath);
     }
 
     /**
@@ -33,7 +35,7 @@ trait ConfigTrait
      * @throws ArgumentNullException
      * @throws ArgumentOutOfRangeException
      */
-    protected function getVendorDir(): string
+    public function getVendorDir(): string
     {
         return $this->getWorkDir().'/vendor';
     }
@@ -43,13 +45,13 @@ trait ConfigTrait
      * @throws ArgumentNullException
      * @throws ArgumentOutOfRangeException
      */
-    protected function getComposerPath(): string
+    public function getComposerPath(): string
     {
-        if (!empty(static::$composerPath)) {
-            return (string)static::$composerPath;
+        if (!empty($this->composerPath)) {
+            return (string)$this->composerPath;
         }
 
-        return static::$composerPath = Option::get('package.manager', 'COMPOSER_PATH', '/bin/composer');
+        return $this->composerPath = Option::get('package.manager', 'COMPOSER_PATH', '/bin/composer');
     }
 
     /**
@@ -57,19 +59,15 @@ trait ConfigTrait
      * @throws ArgumentNullException
      * @throws ArgumentOutOfRangeException
      */
-    protected function getComposerConfig(): array
+    public function getComposerConfig(): array
     {
-        if (!empty(static::$composerConfig)) {
-            return static::$composerConfig;
-        }
-
         $configFile = $this->getWorkDir().'/composer.json';
         if (!file_exists($configFile)) {
             return [];
         }
 
         $content = file_get_contents($configFile);
-        return static::$composerConfig = json_decode($content, true);
+        return json_decode($content, true);
     }
 
     /**
@@ -77,7 +75,7 @@ trait ConfigTrait
      * @throws ArgumentNullException
      * @throws ArgumentOutOfRangeException
      */
-    protected function getRequiredPackages(): array
+    public function getRequiredPackages(): array
     {
         return $this->getComposerConfig()['require'] ?? [];
     }
@@ -87,7 +85,7 @@ trait ConfigTrait
      * @throws ArgumentNullException
      * @throws ArgumentOutOfRangeException
      */
-    protected function getClassmapList(): array
+    public function getClassmapList(): array
     {
         return $this->getComposerConfig()['autoload']['classmap'] ?? [];
     }
@@ -97,7 +95,7 @@ trait ConfigTrait
      * @throws ArgumentNullException
      * @throws ArgumentOutOfRangeException
      */
-    protected function getNamespaceList(): array
+    public function getNamespaceList(): array
     {
         return $this->getComposerConfig()['autoload']['psr-4'] ?? [];
     }
@@ -107,7 +105,7 @@ trait ConfigTrait
      * @throws ArgumentNullException
      * @throws ArgumentOutOfRangeException
      */
-    protected function getDevRequiredPackages(): array
+    public function getDevRequiredPackages(): array
     {
         return $this->getComposerConfig()['dev-require'] ?? [];
     }
@@ -118,7 +116,7 @@ trait ConfigTrait
      * @throws ArgumentNullException
      * @throws ArgumentOutOfRangeException
      */
-    protected function packageInRequired(string $packageName): bool
+    public function packageInRequired(string $packageName): bool
     {
         if (isset($this->getRequiredPackages()[$packageName])) {
             return true;
@@ -133,7 +131,7 @@ trait ConfigTrait
      * @throws ArgumentNullException
      * @throws ArgumentOutOfRangeException
      */
-    protected function hasClassmapPath(string $relativePath): bool
+    public function hasClassmapPath(string $relativePath): bool
     {
         return in_array($relativePath, $this->getClassmapList());
     }
@@ -145,7 +143,7 @@ trait ConfigTrait
      * @throws ArgumentNullException
      * @throws ArgumentOutOfRangeException
      */
-    protected function hasNamespace(string $namespace, string $relativePath): bool
+    public function hasNamespace(string $namespace, string $relativePath): bool
     {
         $namespaceList = $this->getNamespaceList();
         return isset($namespaceList[$namespace]) && $namespaceList[$namespace] === $relativePath;
@@ -157,7 +155,7 @@ trait ConfigTrait
      * @throws ArgumentNullException
      * @throws ArgumentOutOfRangeException
      */
-    protected function packageInDevRequired(string $packageName): bool
+    public function packageInDevRequired(string $packageName): bool
     {
         if (isset($this->getDevRequiredPackages()[$packageName])) {
             return true;
@@ -172,12 +170,12 @@ trait ConfigTrait
      * @throws ArgumentNullException
      * @throws ArgumentOutOfRangeException
      */
-    private function updateComposerConfig(array $config): bool
+    public function updateComposerConfig(array $config): bool
     {
         $configFile = $this->getWorkDir().'/composer.json';
-        $result = (bool)file_put_contents($configFile, json_encode($config));
+        $result = (bool)file_put_contents($configFile, json_encode($config,  JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES));
         if ($result === true) {
-            static::$composerConfig = $config;
+            $this->composerConfig = $config;
         }
 
         return $result;
@@ -189,13 +187,13 @@ trait ConfigTrait
      * @throws ArgumentNullException
      * @throws ArgumentOutOfRangeException
      */
-    protected function packageIsInstalled(string $packageName): bool
+    public function packageIsInstalled(string $packageName): bool
     {
         if (!$this->packageInRequired($packageName)) {
             return false;
         }
 
-        $packageDir = $this->getVendorDir().$packageName;
+        $packageDir = $this->getVendorDir().'/'.$packageName;
         return (bool)is_dir($packageDir);
     }
 }

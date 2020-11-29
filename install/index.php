@@ -48,23 +48,23 @@ class package_manager extends CModule
     private function installComposer(): bool
     {
         $documentRoot = Application::getDocumentRoot();
-        copy('https://getcomposer.org/installer', "{$documentRoot}/local/composer-setup.php");
+        copy('https://getcomposer.org/installer', "{$documentRoot}/composer-setup.php");
 
         $output = null;
         $result = null;
 
-        $composerPath = "{$documentRoot}/local/composer.phar";
+        $composerPath = "{$documentRoot}/composer.phar";
         $commandList = [
-            "php {$documentRoot}/local/composer-setup.php --install-dir={$documentRoot}/local",
+            "php {$documentRoot}/composer-setup.php --install-dir={$documentRoot}",
         ];
-        unlink("{$documentRoot}/local/composer-setup.php");
         exec(implode(' && ', $commandList), $output, $result);
+        unlink("{$documentRoot}/composer-setup.php");
         if (!file_exists($composerPath) || $result === 1) {
             return false;
         }
 
         Option::set($this->MODULE_ID, 'COMPOSER_PATH', $composerPath);
-        Option::set($this->MODULE_ID, 'WORK_DIR', "{$documentRoot}/local");
+        Option::set($this->MODULE_ID, 'WORK_DIR', $documentRoot);
 
         return true;
     }
